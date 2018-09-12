@@ -1,6 +1,5 @@
-import asyncio
-import json
-import websockets
+from flask import Flask
+from flask_sockets import Sockets
 
 
 class Message:
@@ -18,6 +17,7 @@ class Message:
     uid = ''
     message = ''
 
+
 class Connection:
     def __init__(self, uid, name, websocket):
         self.uid = uid
@@ -29,39 +29,38 @@ class Connection:
     websocket = ''
 
 
+app = Flask(__name__)
+app.debug = True
+sockets = Sockets(app)
+
 class Server:
-    def __init__(self, url, port):
-        self.url = url
+    def __init__(self, port):
         self.port = port
 
-    url = 'localhost'
     port = 5000
     connections = []
 
+    @sockets.route('/echo')
+    def echo_socket(self, ws):
+        while True:
+            message = ws.receive()
+            ws.send(message[::-1])
+
+    @app.route('/')
+    def hello(self):
+        return 'Hello World!'
+
+    @app.route('/echo_test', methods=['GET'])
+    def echo_test(self):
+        return render_template('echo_test.html')
+
     def init(self):
-        print("Starting Server")
-        start_server = websockets.serve(self.listen, self.url, self.port)
+        uri = "ws://127.0.0.1:" + str(self.port)
+        print("Starting server: " + uri)
 
-        asyncio.get_event_loop().run_until_complete(start_server)
+        from gevent import pywsgi
+        from geventwebsocket.handler import WebSocketHandler
+        server = pywsgi.WSGIServer(('', self.port), app, handler_class=WebSocketHandler)
+        server.serve_forever()
 
-        print("Server Started")
-
-        asyncio.get_event_loop().run_forever()
-
-    async def listen(self, websocket, path):
-        res = await websocket.recv()
-        msg = Message(json.loads(res))
-
-        if msg.id == 1:
-            self.connections.append(Connection(msg.uid, msg.message, websocket))
-
-        await self.send_all("ok")
-
-        print(self.connections)
-
-    async def send(self, websocket, data):
-        await websocket.send(data)
-
-    async def send_all(self, data):
-        for conn in self.connections:
-            await conn.websocket.send(data)
+        app.run()
