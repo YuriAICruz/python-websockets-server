@@ -1,5 +1,8 @@
 class Message:
     def __init__(self, obj):
+        if obj is None:
+            return
+
         self.id = obj["id"]
         self.uid = obj["uid"]
         self.message = obj["message"]
