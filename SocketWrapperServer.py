@@ -20,12 +20,14 @@ class Message:
 
 
 class ObjectData:
-    def __init__(self, index, oId):
+    def __init__(self, index, oId, owner):
         self.index = index
-        self.objectId = oId
+        self.id = oId
+        self.owner = owner
 
     index = 0
-    objectId = 0
+    id = 0
+    owner = ""
 
 
 class Connection:

@@ -19,12 +19,39 @@ dynamicObjects = []
 
 instanced_object = 0
 
+def remove_connection(ws):
+    conn = find(lambda c: c.websocket == ws, connections)
+
+    if conn is not None:
+        remove(lambda c: c.owner == conn.uid, dynamicObjects)
+        remove(lambda c: c.websocket == ws, connections)
+        smsg = Message(None)
+        smsg.init_from_args(2, "", "closed")
+        json_string = json.dumps(smsg.__dict__)
+        send_all(json_string)
+        print ("connection from " + conn.uid + " closed")
+    else:
+        print ("connection closed")
+
+
+def check_connection(ws):
+    conn = find(lambda c: c.websocket == ws, connections)
+
+    if conn == None:
+        conn = Connection(nullguid, " ", ws)
+        connections.append(conn)
+
+    return conn
+
+
+def parse_message(msg):
+    return Message(json.loads(str(msg)))
+
 
 @sockets.route('/echo')
 def echo_socket(ws):
     while True:
         message = ws.receive()
-        print (message)
         send(ws, message)
 
 
@@ -38,50 +65,39 @@ def status_sock(ws):
 @sockets.route('/gameServer')
 def game_messages_listener(ws):
     while True:
-        if ws.closed:
-            conn = find(lambda c: c.websocket == ws, connections)
+        global nullguid
 
-            if conn is not None:
-                remove(lambda c: c.websocket == ws, connections)
-                smsg = Message(None)
-                smsg.init_from_args(2, "", "closed")
-                json_string = json.dumps(smsg.__dict__)
-                send_all(json_string)
-                print ("connection from " + conn.uid + " closed")
-            else:
-                print ("connection closed")
+        if ws.closed:
+            remove_connection(ws)
             break
 
-        res = ws.receive()
+        global connections
+        conn = check_connection(ws)
 
-        if res is None:
+        message = ws.receive()
+        if message is None:
             continue
 
-        global dynamicObjects
+        msg = parse_message(message)
 
-        msg = Message(json.loads(str(res)))
+        if conn.uid == nullguid:
+            conn.uid = msg.uid
+            print ("Client " + msg.uid + " connected")
 
         if msg.id == 1:
-            print ("add client: " + msg.uid)
-            connections.append(Connection(msg.uid, msg.message, ws))
-            print (connections)
-            smsg = Message(None)
-            smsg.init_from_args(1, msg.uid, "connected")
-            send_all(json.dumps(smsg.__dict__))
-
             if len(dynamicObjects) > 0:
-                message = json.dumps(list(map(lambda x: x.__dict__, dynamicObjects)))
+                data_message = json.dumps(list(map(lambda x: x.__dict__, dynamicObjects)))
                 dymsg = Message(None)
-                global nullguid
-                dymsg.init_from_args(48, nullguid, message)
+                dymsg.init_from_args(48, nullguid, data_message)
                 send(ws, json.dumps(dymsg.__dict__))
-        else:
-            # print (json.dumps(msg.__dict__))
-            send_all(json.dumps(msg.__dict__))
 
         if msg.id == 49:
             data = json.loads(str(msg.message))
-            dynamicObjects.append(ObjectData(data["index"], data["id"]))
+            dynamicObjects.append(ObjectData(data["index"], data["id"], msg.uid))
+            print ("Sending instances " + str(len(dynamicObjects)))
+
+        # send(ws, message)
+        send_all(message)
 
 
 @app.route('/')
@@ -99,7 +115,6 @@ def testRequest():
     # if request.method == 'POST':
     global instanced_object
     instanced_object += 1
-    print (instanced_object)
     return str(instanced_object)
 
 
@@ -129,7 +144,7 @@ def remove(f, seq):
     for item in seq:
         if f(item):
             seq.pop(i)
-            return
+            continue
         i += 1
 
 
