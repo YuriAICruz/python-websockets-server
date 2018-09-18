@@ -4,6 +4,7 @@ class Message:
             return
 
         self.id = obj["id"]
+        self.objectId = obj["objectId"]
         self.uid = obj["uid"]
         self.message = obj["message"]
 
@@ -15,6 +16,16 @@ class Message:
     id = 0
     uid = ''
     message = ''
+    objectId = 0
+
+
+class ObjectData:
+    def __init__(self, index, oId):
+        self.index = index
+        self.objectId = oId
+
+    index = 0
+    objectId = 0
 
 
 class Connection:
