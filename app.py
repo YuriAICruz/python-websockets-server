@@ -19,10 +19,17 @@ dynamicObjects = []
 
 instanced_object = 0
 
+
 def remove_connection(ws):
     conn = find(lambda c: c.websocket == ws, connections)
 
     if conn is not None:
+        removed = find_all(lambda c: c.owner == conn.uid, dynamicObjects)
+        if len(removed) > 0:
+            data_message = json.dumps(list(map(lambda x: x.__dict__, removed)))
+            dymsg = Message(None)
+            dymsg.init_from_args(47, nullguid, data_message)
+            send(ws, json.dumps(dymsg.__dict__))
         remove(lambda c: c.owner == conn.uid, dynamicObjects)
         remove(lambda c: c.websocket == ws, connections)
         smsg = Message(None)
@@ -137,6 +144,14 @@ def find(f, seq):
     for item in seq:
         if f(item):
             return item
+
+
+def find_all(f, seq):
+    res = []
+    for item in seq:
+        if f(item):
+            res.append(item)
+    return res
 
 
 def remove(f, seq):
