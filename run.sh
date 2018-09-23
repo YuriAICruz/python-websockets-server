@@ -1,6 +1,6 @@
 #! /bin/sh
 
-cd /home/python-websockets-server/
+cd /var/python-websockets-server/
 
 git checkout .
 git pull
